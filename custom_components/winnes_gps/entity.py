@@ -23,7 +23,7 @@ class WinnesCoordinatorEntity(CoordinatorEntity[WinnesDataUpdateCoordinator]):
         key: str,
     ) -> None:
         super().__init__(coordinator)
-        self._attr_unique_id = f"{coordinator.api.device_id}_{key}"
+        self._attr_unique_id = f"{coordinator.api.local_id}_{key}"
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -35,7 +35,7 @@ class WinnesCoordinatorEntity(CoordinatorEntity[WinnesDataUpdateCoordinator]):
         if data:
             model = data.model_name or data.model
         return DeviceInfo(
-            identifiers={(DOMAIN, str(self.coordinator.api.device_id))},
+            identifiers={(DOMAIN, self.coordinator.api.local_id)},
             name=name,
             manufacturer="WINNES / TKSTAR",
             model=model,
