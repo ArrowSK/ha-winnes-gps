@@ -1,0 +1,11 @@
+{
+  "domain": "winnes_gps",
+  "name": "WINNES GPS",
+  "codeowners": ["@ArrowSK"],
+  "config_flow": true,
+  "documentation": "https://github.com/ArrowSK/ha-winnes-gps",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/ArrowSK/ha-winnes-gps/issues",
+  "version": "0.1.0"
+}
