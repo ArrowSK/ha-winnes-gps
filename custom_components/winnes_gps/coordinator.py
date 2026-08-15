@@ -65,7 +65,12 @@ class WinnesDataUpdateCoordinator(DataUpdateCoordinator[WinnesDeviceData]):
             return self.api.private_data()
 
         try:
-            return await self.api.async_get_device(timezone_offset(self.hass))
+            data = await self.api.async_get_device(timezone_offset(self.hass))
+            # If privacy was enabled while an already-running request was in
+            # flight, discard that response before it can reach entity state.
+            if self.privacy_mode:
+                return self.api.private_data()
+            return data
         except WinnesDeviceNotFound as err:
             raise UpdateFailed("Configured WINNES device was not returned") from err
         except WinnesInvalidResponse as err:
@@ -77,8 +82,11 @@ class WinnesDataUpdateCoordinator(DataUpdateCoordinator[WinnesDeviceData]):
         """Apply privacy mode immediately and refresh entity states."""
 
         self.privacy_mode = enabled
-        # Use the normal coordinator refresh path. When enabling privacy this
-        # refresh returns telemetry-free data without touching the network.
+        if enabled:
+            # Clear published telemetry synchronously. Any in-flight request is
+            # also discarded by _async_update_data before listeners are updated.
+            self.async_set_updated_data(self.api.private_data())
+            return
         await self.async_request_refresh()
 
 
