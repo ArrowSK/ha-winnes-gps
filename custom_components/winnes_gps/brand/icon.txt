@@ -1,1 +1,0 @@
-Binary icon.png is generated from the adjacent original icon.svg source and is required by HACS/Home Assistant brand handling.
