@@ -1,0 +1,22 @@
+name: Feature request
+description: Suggest a safe, read-only improvement
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include private tracker/account data. Requests for ID enumeration, CAPTCHA bypass, credential scraping, or unsafe remote-control behavior are out of scope.
+  - type: textarea
+    id: feature
+    attributes:
+      label: Proposed feature
+    validations:
+      required: true
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use case
+      description: Explain why the feature is useful in Home Assistant.
+    validations:
+      required: true
