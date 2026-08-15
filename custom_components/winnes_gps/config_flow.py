@@ -68,14 +68,14 @@ class WinnesGpsConfigFlow(ConfigFlow, domain=DOMAIN):
             user_id = int(user_input[CONF_USER_ID])
             device_id = int(user_input[CONF_DEVICE_ID])
 
-            await self.async_set_unique_id(str(device_id))
-            self._abort_if_unique_id_configured()
-
             api = WinnesApi(
                 async_get_clientsession(self.hass),
                 user_id=user_id,
                 device_id=device_id,
             )
+            await self.async_set_unique_id(api.local_id)
+            self._abort_if_unique_id_configured()
+
             try:
                 data = await api.async_get_device(timezone_offset(self.hass))
             except WinnesDeviceNotFound:
