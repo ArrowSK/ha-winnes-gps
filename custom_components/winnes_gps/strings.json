@@ -1,0 +1,70 @@
+{
+  "title": "WINNES GPS",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up WINNES GPS",
+        "description": "Connect to the WINNES/TKSTAR mytkstar.net tracking backend without storing your tracker password. Enter the internal numeric User ID and Device ID from the GetDevicesByUserID request in your browser's Developer Tools. These are not the IMEI/tracker number printed on the device. See the repository README for the exact privacy-safe steps.",
+        "data": {
+          "user_id": "Backend User ID",
+          "device_id": "Backend Device ID"
+        },
+        "data_description": {
+          "user_id": "Numeric UserID from the GetDevicesByUserID request payload.",
+          "device_id": "Numeric DeviceID from the same request payload. Do not enter the tracker IMEI/serial number."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not reach the WINNES tracking backend.",
+      "device_not_found": "The backend did not return the configured device. Check both internal IDs.",
+      "invalid_response": "WINNES returned an unexpected response. The unofficial web API may have changed.",
+      "unknown": "An unexpected error occurred while validating the tracker."
+    },
+    "abort": {
+      "already_configured": "This WINNES backend device is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "WINNES GPS options",
+        "description": "Privacy mode is fail-closed: while enabled, the integration makes no WINNES HTTP requests and publishes no live telemetry. You can also control it from the Privacy mode switch entity.",
+        "data": {
+          "scan_interval": "Polling interval (seconds)",
+          "privacy_mode": "Start in privacy mode"
+        },
+        "data_description": {
+          "scan_interval": "10-300 seconds. The default is 30 seconds.",
+          "privacy_mode": "Persistently stop all WINNES polling and clear live tracker telemetry."
+        }
+      }
+    }
+  },
+  "entity": {
+    "device_tracker": {
+      "location": {
+        "name": "Location"
+      }
+    },
+    "sensor": {
+      "battery": {"name": "Battery"},
+      "speed": {"name": "Speed"},
+      "last_position": {"name": "Last position"},
+      "position_source": {"name": "Position source"},
+      "status": {"name": "Status"},
+      "distance": {"name": "Total distance"},
+      "course": {"name": "Course"},
+      "stop_duration": {"name": "Stop duration"},
+      "offline_duration": {"name": "Offline duration"},
+      "server_update": {"name": "Server update"}
+    },
+    "binary_sensor": {
+      "online": {"name": "Online"},
+      "moving": {"name": "Moving"}
+    },
+    "switch": {
+      "privacy_mode": {"name": "Privacy mode"}
+    }
+  }
+}
