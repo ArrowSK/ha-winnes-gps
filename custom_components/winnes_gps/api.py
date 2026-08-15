@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Mapping
+from hashlib import sha256
 from typing import Any
 
 import aiohttp
@@ -41,6 +42,9 @@ class WinnesApi:
         self._session = session
         self.user_id = user_id
         self.device_id = device_id
+        self.local_id = sha256(
+            f"{self.user_id}:{self.device_id}".encode("ascii")
+        ).hexdigest()[:32]
         self._first_request = True
         self._metadata: dict[str, Any] = {}
 
