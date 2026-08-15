@@ -24,7 +24,7 @@ class PayloadTests(unittest.TestCase):
     def test_parse_legacy_payload(self) -> None:
         payload = (
             '{devices:[{id:1234,name:"Demo, Tracker: A",model:"152",'
-            'modelName:"TK915",latitude:"47.00000",longitude:"19.00000",'
+            'modelName:"TK915",latitude:"10.00000",longitude:"20.00000",'
             'speed:"0.00",speed:"12.50",course:"90",dataType:"1",'
             'dataContext:"-74",distance:"123.45",isStop:0,stopTimeMinute:0,'
             'ofl:"0",status:"Move",deviceUtcDate:"2026-08-16 10:00:00",'
@@ -47,8 +47,8 @@ class PayloadTests(unittest.TestCase):
             "name": "Demo Tracker",
             "model": "152",
             "modelName": "TK915",
-            "latitude": "47.0",
-            "longitude": "19.0",
+            "latitude": "10.0",
+            "longitude": "20.0",
             "speed": "12.5",
             "course": "90",
             "dataType": "1",
