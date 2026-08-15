@@ -1,0 +1,36 @@
+name: Bug report
+description: Report a reproducible WINNES GPS integration problem
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Privacy warning:** do not attach HAR files, passwords, backend IDs, tracker serials, vehicle registrations, or exact coordinates. Use the integration's redacted diagnostics where possible.
+  - type: input
+    id: ha_version
+    attributes:
+      label: Home Assistant version
+      placeholder: 2026.8.1
+    validations:
+      required: true
+  - type: input
+    id: integration_version
+    attributes:
+      label: WINNES GPS version
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe what happened and what you expected. Redact private data.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste only redacted logs. Do not include request bodies or live location data.
+      render: text
