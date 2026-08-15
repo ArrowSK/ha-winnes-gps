@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Editors / OS
+.DS_Store
+.vscode/
+.idea/
+
+# Secrets and captured network traffic
+.env
+.env.*
+secrets.yaml
+*.har
+*.pcap
+*.pcapng
+captures/
+private/
