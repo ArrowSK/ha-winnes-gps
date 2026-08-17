@@ -51,6 +51,13 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
 
+      - name: Build HACS release archive
+        shell: bash
+        run: |
+          cd custom_components/winnes_gps
+          zip -r "$GITHUB_WORKSPACE/winnes_gps.zip" . \
+            -x "*/__pycache__/*" "*.pyc" "*.pyo"
+
       - name: Check whether release already exists
         id: existing
         env:
@@ -64,7 +71,7 @@ jobs:
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Create GitHub release
+      - name: Create GitHub release with HACS archive
         if: steps.existing.outputs.exists != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -73,17 +80,28 @@ jobs:
           TARGET_SHA: ${{ steps.commit.outputs.sha }}
         shell: bash
         run: |
-          gh release create "$TAG" \
+          gh release create "$TAG" "$GITHUB_WORKSPACE/winnes_gps.zip" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$TARGET_SHA" \
             --title "WINNES GPS $VERSION" \
             --generate-notes
 
+      - name: Refresh HACS archive on existing release
+        if: steps.existing.outputs.exists == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        shell: bash
+        run: |
+          gh release upload "$TAG" "$GITHUB_WORKSPACE/winnes_gps.zip" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
       - name: Summary
         shell: bash
         run: |
           if [[ "${{ steps.existing.outputs.exists }}" == "true" ]]; then
-            echo "Release ${{ steps.version.outputs.tag }} already exists; nothing to do." >> "$GITHUB_STEP_SUMMARY"
+            echo "Updated ${{ steps.version.outputs.tag }} with winnes_gps.zip for HACS." >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "Created release ${{ steps.version.outputs.tag }} for HACS." >> "$GITHUB_STEP_SUMMARY"
+            echo "Created ${{ steps.version.outputs.tag }} with winnes_gps.zip for HACS." >> "$GITHUB_STEP_SUMMARY"
           fi
