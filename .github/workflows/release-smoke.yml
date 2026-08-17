@@ -1,8 +1,9 @@
 name: HACS Release Smoke
 
 on:
-  push:
-    branches: [main]
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -10,9 +11,24 @@ permissions:
 
 jobs:
   smoke:
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' ||
+          github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
+      - name: Resolve released commit
+        id: commit
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.commit.outputs.sha }}
 
       - name: Verify HACS release discovery and package
         env:
@@ -24,8 +40,8 @@ jobs:
           VERSION="$(python -c 'import json; print(json.load(open("custom_components/winnes_gps/manifest.json"))["version"])')"
           TAG="v${VERSION}"
 
-          # HACS 2.0.5 uses GitHub's list-releases API. Prove the authenticated
-          # endpoint sees the current release, with retries for transient GitHub 5xx errors.
+          # HACS 2.0.5 discovers versions from GitHub's list-releases API.
+          # Retry transient GitHub 5xx errors, then apply the same stable-release selection.
           ok=0
           for attempt in 1 2 3 4 5; do
             if gh api "repos/$GITHUB_REPOSITORY/releases?per_page=30" > /tmp/releases.json; then

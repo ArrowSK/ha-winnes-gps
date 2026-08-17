@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here.
 
+## 0.1.4 - 2026-08-17
+
+HACS release verification hardening.
+
+- Add an end-to-end post-release smoke test that uses the same GitHub release-list behavior HACS 2.0.5 relies on.
+- Retry transient GitHub API 5xx failures before declaring release discovery broken.
+- Verify that HACS selects the newest stable release, that the tagged `hacs.json` points to `winnes_gps.zip`, and that the ZIP contains a matching integration manifest.
+- No Home Assistant runtime behavior changed in this release.
+
 ## 0.1.3 - 2026-08-17
 
 HACS release-selection fix.
