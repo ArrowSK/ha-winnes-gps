@@ -26,13 +26,48 @@ jobs:
   hacs:
     runs-on: ubuntu-latest
     steps:
-      - name: HACS validation
+      - name: HACS validation - attempt 1
+        id: hacs_1
+        continue-on-error: true
         uses: hacs/action@main
         with:
           category: integration
-          # This repository is initially distributed as a HACS custom repository.
-          # GitHub listing metadata cannot be set from repository contents.
           ignore: topics description
+
+      - name: Wait before HACS retry 2
+        if: steps.hacs_1.outcome == 'failure'
+        run: sleep 20
+
+      - name: HACS validation - attempt 2
+        id: hacs_2
+        if: steps.hacs_1.outcome == 'failure'
+        continue-on-error: true
+        uses: hacs/action@main
+        with:
+          category: integration
+          ignore: topics description
+
+      - name: Wait before HACS retry 3
+        if: steps.hacs_1.outcome == 'failure' && steps.hacs_2.outcome == 'failure'
+        run: sleep 30
+
+      - name: HACS validation - attempt 3
+        id: hacs_3
+        if: steps.hacs_1.outcome == 'failure' && steps.hacs_2.outcome == 'failure'
+        continue-on-error: true
+        uses: hacs/action@main
+        with:
+          category: integration
+          ignore: topics description
+
+      - name: Require a successful HACS validation
+        if: >-
+          steps.hacs_1.outcome == 'failure' &&
+          steps.hacs_2.outcome == 'failure' &&
+          steps.hacs_3.outcome == 'failure'
+        run: |
+          echo "HACS validation failed three times; refusing to publish a release."
+          exit 1
 
   hassfest:
     runs-on: ubuntu-latest
