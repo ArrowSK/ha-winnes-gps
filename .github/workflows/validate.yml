@@ -26,46 +26,56 @@ jobs:
   hacs:
     runs-on: ubuntu-latest
     steps:
-      - name: HACS validation - attempt 1
-        id: hacs_1
-        continue-on-error: true
-        uses: hacs/action@main
-        with:
-          category: integration
-          ignore: topics description
+      - uses: actions/checkout@v4
 
-      - name: Wait before HACS retry 2
-        if: steps.hacs_1.outcome == 'failure'
-        run: sleep 20
-
-      - name: HACS validation - attempt 2
-        id: hacs_2
-        if: steps.hacs_1.outcome == 'failure'
-        continue-on-error: true
-        uses: hacs/action@main
-        with:
-          category: integration
-          ignore: topics description
-
-      - name: Wait before HACS retry 3
-        if: steps.hacs_1.outcome == 'failure' && steps.hacs_2.outcome == 'failure'
-        run: sleep 30
-
-      - name: HACS validation - attempt 3
-        id: hacs_3
-        if: steps.hacs_1.outcome == 'failure' && steps.hacs_2.outcome == 'failure'
-        continue-on-error: true
-        uses: hacs/action@main
-        with:
-          category: integration
-          ignore: topics description
-
-      - name: Require a successful HACS validation
-        if: >-
-          steps.hacs_1.outcome == 'failure' &&
-          steps.hacs_2.outcome == 'failure' &&
-          steps.hacs_3.outcome == 'failure'
+      - name: Pull HACS validator image with retries
+        shell: bash
         run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5; do
+            if docker pull ghcr.io/hacs/action:main; then
+              exit 0
+            fi
+            echo "HACS validator image pull attempt $attempt failed; retrying..."
+            sleep $((attempt * 5))
+          done
+          echo "Could not pull the HACS validator image after five attempts."
+          exit 1
+
+      - name: HACS validation with retries
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -uo pipefail
+          for attempt in 1 2 3; do
+            echo "HACS validation attempt $attempt"
+            if docker run --rm --pull=never \
+              -v "$GITHUB_WORKSPACE:/github/workspace" \
+              -w /github/workspace \
+              -e INPUT_CATEGORY=integration \
+              -e "INPUT_IGNORE=topics description" \
+              -e INPUT_REPOSITORY="$GITHUB_REPOSITORY" \
+              -e INPUT_COMMENT=false \
+              -e INPUT_GITHUB_TOKEN="$GH_TOKEN" \
+              -e GITHUB_REPOSITORY="$GITHUB_REPOSITORY" \
+              -e GITHUB_REF="$GITHUB_REF" \
+              -e GITHUB_REF_NAME="$GITHUB_REF_NAME" \
+              -e GITHUB_REF_TYPE="$GITHUB_REF_TYPE" \
+              -e GITHUB_SHA="$GITHUB_SHA" \
+              -e GITHUB_EVENT_NAME="$GITHUB_EVENT_NAME" \
+              -e GITHUB_SERVER_URL="$GITHUB_SERVER_URL" \
+              -e GITHUB_API_URL="$GITHUB_API_URL" \
+              -e GITHUB_WORKSPACE=/github/workspace \
+              ghcr.io/hacs/action:main; then
+              echo "HACS validation passed on attempt $attempt."
+              exit 0
+            fi
+            if [[ "$attempt" -lt 3 ]]; then
+              echo "HACS validation attempt $attempt failed; waiting before retry."
+              sleep $((attempt * 20))
+            fi
+          done
           echo "HACS validation failed three times; refusing to publish a release."
           exit 1
 
