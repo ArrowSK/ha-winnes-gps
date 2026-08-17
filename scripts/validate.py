@@ -66,6 +66,12 @@ def main() -> None:
     hacs = json.loads((ROOT / "hacs.json").read_text(encoding="utf-8"))
     if hacs.get("name") != "WINNES GPS":
         fail("unexpected HACS name")
+    if hacs.get("zip_release") is not True:
+        fail("HACS distribution must use zip_release")
+    if hacs.get("filename") != "winnes_gps.zip":
+        fail("HACS release filename must be winnes_gps.zip")
+    if hacs.get("hide_default_branch") is not True:
+        fail("HACS default branch must stay hidden; installs must use releases")
 
     strings = json.loads((COMPONENT / "strings.json").read_text(encoding="utf-8"))
     english = json.loads(

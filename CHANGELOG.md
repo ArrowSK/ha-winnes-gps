@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here.
 
+## 0.1.3 - 2026-08-17
+
+HACS release-selection fix.
+
+- Hide the default branch from the HACS version selector so HACS does not try to install an abbreviated commit reference instead of a published release.
+- Keep HACS installs on immutable GitHub releases with the explicit `winnes_gps.zip` asset.
+- Stop rewriting assets on an already-published version; a manifest version now maps to one fixed release.
+
 ## 0.1.2 - 2026-08-17
 
 HACS distribution reliability fix.
