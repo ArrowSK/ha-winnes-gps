@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented here.
 
+## 0.1.1 - 2026-08-17
+
+Backend compatibility fix based on the current mytkstar.net web request profile.
+
+- Match the official web client's `application/json` content type and same-origin request headers on the primary polling attempt.
+- Use a map-page referer shape matching the current mytkstar.net client.
+- Retry automatically with the previous minimal request profile when the backend rejects or changes the primary response shape.
+- Accept both the observed legacy string payload and a normal JSON `d.devices` payload without executing JavaScript.
+- Keep response bodies out of logs and errors so exact location and tracker details are not exposed during setup failures.
+
 ## 0.1.0 - 2026-08-16
 
 Initial public build.
