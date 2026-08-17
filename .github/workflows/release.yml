@@ -150,6 +150,7 @@ jobs:
           TAG: ${{ steps.version.outputs.tag }}
           VERSION: ${{ steps.version.outputs.version }}
           TARGET_SHA: ${{ steps.commit.outputs.sha }}
+          EXISTING_RELEASE: ${{ steps.existing.outputs.exists }}
         shell: bash
         run: |
           set -euo pipefail
@@ -163,11 +164,15 @@ jobs:
           data = json.load(open('/tmp/release-verify.json'))
           expected_tag = os.environ['TAG']
           expected_sha = os.environ['TARGET_SHA']
+          existing_release = os.environ.get('EXISTING_RELEASE') == 'true'
           if data.get('tagName') != expected_tag:
               raise SystemExit(1)
           if data.get('isDraft') or data.get('isPrerelease'):
               raise SystemExit(1)
-          if data.get('targetCommitish') != expected_sha:
+          # A previously published immutable version is expected to target the
+          # commit that created that version, not every later metadata-only main
+          # commit that keeps the same manifest version.
+          if not existing_release and data.get('targetCommitish') != expected_sha:
               raise SystemExit(1)
           if not any(a.get('name') == 'winnes_gps.zip' for a in data.get('assets', [])):
               raise SystemExit(1)
@@ -184,7 +189,11 @@ jobs:
             echo "Published release did not pass verification."
             exit 1
           fi
-          echo "Verified stable $TAG targeting $TARGET_SHA with winnes_gps.zip."
+          if [[ "$EXISTING_RELEASE" == "true" ]]; then
+            echo "Verified existing stable $TAG with winnes_gps.zip."
+          else
+            echo "Verified new stable $TAG targeting $TARGET_SHA with winnes_gps.zip."
+          fi
 
       # HACS 2.0.5 can cache the repository ETag before a just-created release is
       # visible. For an uninstalled custom repository that 304 response returns
