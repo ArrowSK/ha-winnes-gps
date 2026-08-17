@@ -7,8 +7,8 @@ All notable changes to this project are documented here.
 HACS release verification hardening.
 
 - Add an end-to-end post-release smoke test that uses the same GitHub release-list behavior HACS 2.0.5 relies on.
-- Retry transient GitHub API 5xx failures before declaring release discovery broken.
-- Retry HACS validation when GitHub raw-content rate limiting causes a transient false failure; publishing is still blocked if all three attempts fail.
+- Retry transient GitHub API failures during HACS validation, release discovery, release creation, and release verification instead of silently falling back to commit mode or publishing an incomplete release.
+- Run the HACS validator directly from its official container image so GitHub codeload rate limiting cannot prevent the validator itself from starting.
 - Verify that HACS selects the newest stable release, that the tagged `hacs.json` points to `winnes_gps.zip`, and that the ZIP contains a matching integration manifest.
 - No Home Assistant runtime behavior changed in this release.
 

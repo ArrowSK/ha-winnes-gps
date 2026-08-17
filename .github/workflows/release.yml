@@ -9,6 +9,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: winnes-gps-release
+  cancel-in-progress: false
+
 jobs:
   release:
     if: >-
@@ -58,16 +62,32 @@ jobs:
           TAG: ${{ steps.version.outputs.tag }}
         shell: bash
         run: |
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
+          set -euo pipefail
+          for attempt in 1 2 3 4 5; do
+            STATUS="$(curl -sS -o /tmp/release-check.json -w '%{http_code}' \
+              -H 'Accept: application/vnd.github+json' \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/$TAG" || true)"
+            if [[ "$STATUS" == "200" ]]; then
+              echo "exists=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            if [[ "$STATUS" == "404" ]]; then
+              echo "exists=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "Release lookup attempt $attempt returned HTTP ${STATUS:-unknown}; retrying..."
+            sleep $((attempt * 4))
+          done
+          echo "Could not determine whether $TAG exists; refusing to guess."
+          exit 1
 
       - name: Build HACS release archive
         if: steps.existing.outputs.exists != 'true'
         shell: bash
         run: |
+          set -euo pipefail
           cd custom_components/winnes_gps
           zip -r "$GITHUB_WORKSPACE/winnes_gps.zip" . \
             -x "*/__pycache__/*" "*.pyc" "*.pyo"
@@ -81,17 +101,96 @@ jobs:
           TARGET_SHA: ${{ steps.commit.outputs.sha }}
         shell: bash
         run: |
-          gh release create "$TAG" "$GITHUB_WORKSPACE/winnes_gps.zip" \
-            --repo "$GITHUB_REPOSITORY" \
-            --target "$TARGET_SHA" \
-            --title "WINNES GPS $VERSION" \
-            --generate-notes
+          set -uo pipefail
+          success=0
+          for attempt in 1 2 3 4 5; do
+            echo "Release creation attempt $attempt for $TAG"
+            if gh release create "$TAG" "$GITHUB_WORKSPACE/winnes_gps.zip" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$TARGET_SHA" \
+              --title "WINNES GPS $VERSION" \
+              --generate-notes; then
+              success=1
+              break
+            fi
+
+            # A transient API error can occur after GitHub has already created the
+            # release. Check before retrying so we do not turn a successful partial
+            # request into a false failure.
+            sleep $((attempt * 4))
+            if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets > /tmp/release-view.json 2>/dev/null; then
+              if python - <<'PY'
+          import json
+          data = json.load(open('/tmp/release-view.json'))
+          raise SystemExit(0 if any(a.get('name') == 'winnes_gps.zip' for a in data.get('assets', [])) else 1)
+          PY
+              then
+                echo "$TAG exists and already contains winnes_gps.zip."
+                success=1
+                break
+              fi
+
+              echo "$TAG exists but its ZIP asset is missing; completing this newly-created release."
+              if gh release upload "$TAG" "$GITHUB_WORKSPACE/winnes_gps.zip" \
+                --repo "$GITHUB_REPOSITORY"; then
+                success=1
+                break
+              fi
+            fi
+          done
+
+          if [[ "$success" != "1" ]]; then
+            echo "Could not create a complete $TAG release after five attempts."
+            exit 1
+          fi
+
+      - name: Verify published release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+          TARGET_SHA: ${{ steps.commit.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ok=0
+          for attempt in 1 2 3 4 5; do
+            if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" \
+              --json tagName,isDraft,isPrerelease,targetCommitish,assets > /tmp/release-verify.json; then
+              if python - <<'PY'
+          import json
+          import os
+          data = json.load(open('/tmp/release-verify.json'))
+          expected_tag = os.environ['TAG']
+          expected_sha = os.environ['TARGET_SHA']
+          if data.get('tagName') != expected_tag:
+              raise SystemExit(1)
+          if data.get('isDraft') or data.get('isPrerelease'):
+              raise SystemExit(1)
+          if data.get('targetCommitish') != expected_sha:
+              raise SystemExit(1)
+          if not any(a.get('name') == 'winnes_gps.zip' for a in data.get('assets', [])):
+              raise SystemExit(1)
+          PY
+              then
+                ok=1
+                break
+              fi
+            fi
+            echo "Release verification attempt $attempt failed; retrying..."
+            sleep $((attempt * 4))
+          done
+          if [[ "$ok" != "1" ]]; then
+            echo "Published release did not pass verification."
+            exit 1
+          fi
+          echo "Verified stable $TAG targeting $TARGET_SHA with winnes_gps.zip."
 
       - name: Summary
         shell: bash
         run: |
           if [[ "${{ steps.existing.outputs.exists }}" == "true" ]]; then
-            echo "Release ${{ steps.version.outputs.tag }} already exists; no release files were rewritten." >> "$GITHUB_STEP_SUMMARY"
+            echo "Release ${{ steps.version.outputs.tag }} already existed and passed verification; no release files were rewritten." >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "Created release ${{ steps.version.outputs.tag }} with winnes_gps.zip for HACS." >> "$GITHUB_STEP_SUMMARY"
+            echo "Created release ${{ steps.version.outputs.tag }} with winnes_gps.zip and verified it." >> "$GITHUB_STEP_SUMMARY"
           fi
