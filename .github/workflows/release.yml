@@ -186,11 +186,64 @@ jobs:
           fi
           echo "Verified stable $TAG targeting $TARGET_SHA with winnes_gps.zip."
 
+      # HACS 2.0.5 can cache the repository ETag before a just-created release is
+      # visible. For an uninstalled custom repository that 304 response returns
+      # before HACS checks releases again, leaving the UI in Commit mode. Make one
+      # harmless main-branch commit only after a new release is verified so the
+      # next HACS refresh necessarily re-runs release discovery. The follow-up
+      # validation sees an already-existing release, so this cannot loop.
+      - name: Refresh repository metadata after a new release
+        if: steps.existing.outputs.exists != 'true'
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+          TARGET_SHA: ${{ steps.commit.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git checkout -B main origin/main
+
+          CURRENT_TAG="v$(python - <<'PY'
+          import json
+          from pathlib import Path
+          manifest = json.loads(Path('custom_components/winnes_gps/manifest.json').read_text())
+          print(manifest['version'])
+          PY
+          )"
+          if [[ "$CURRENT_TAG" != "$TAG" ]]; then
+            echo "main has moved to $CURRENT_TAG; its own release run will refresh metadata."
+            exit 0
+          fi
+
+          mkdir -p .github
+          printf 'release=%s\ntarget=%s\n' "$TAG" "$TARGET_SHA" > .github/hacs-release-state
+          if [[ -z "$(git status --porcelain -- .github/hacs-release-state)" ]]; then
+            echo "HACS release-state marker already matches $TAG."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/hacs-release-state
+          git commit -m "Refresh HACS release discovery for $TAG"
+
+          for attempt in 1 2 3; do
+            if git push origin HEAD:main; then
+              echo "Published post-release metadata refresh for $TAG."
+              exit 0
+            fi
+            echo "Metadata refresh push attempt $attempt failed; rebasing and retrying..."
+            git pull --rebase origin main
+            sleep $((attempt * 3))
+          done
+          echo "Could not publish the post-release metadata refresh."
+          exit 1
+
       - name: Summary
         shell: bash
         run: |
           if [[ "${{ steps.existing.outputs.exists }}" == "true" ]]; then
             echo "Release ${{ steps.version.outputs.tag }} already existed and passed verification; no release files were rewritten." >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "Created release ${{ steps.version.outputs.tag }} with winnes_gps.zip and verified it." >> "$GITHUB_STEP_SUMMARY"
+            echo "Created release ${{ steps.version.outputs.tag }} with winnes_gps.zip, verified it, and refreshed repository metadata for HACS discovery." >> "$GITHUB_STEP_SUMMARY"
           fi
