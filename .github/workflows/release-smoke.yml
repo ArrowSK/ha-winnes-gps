@@ -30,7 +30,7 @@ jobs:
         with:
           ref: ${{ steps.commit.outputs.sha }}
 
-      - name: Verify HACS release discovery and package
+      - name: Verify HACS 2.0.5 release discovery and standard archive install path
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -40,7 +40,7 @@ jobs:
           VERSION="$(python -c 'import json; print(json.load(open("custom_components/winnes_gps/manifest.json"))["version"])')"
           TAG="v${VERSION}"
 
-          # HACS 2.0.5 decides Version vs Commit mode from GitHub's list-releases API.
+          # HACS 2.0.5 decides Version vs Commit mode from GitHub's release list.
           ok=0
           for attempt in 1 2 3 4 5; do
             if gh api "repos/$GITHUB_REPOSITORY/releases?per_page=30" > /tmp/releases.json; then
@@ -54,7 +54,6 @@ jobs:
 
           python - <<'PY'
           import json
-          import os
 
           version = json.load(open('custom_components/winnes_gps/manifest.json'))['version']
           tag = f'v{version}'
@@ -66,20 +65,10 @@ jobs:
               raise SystemExit('HACS would see no stable GitHub release and fall back to Commit mode')
           if stable[0].get('tag_name') != tag:
               raise SystemExit(f"HACS would select {stable[0].get('tag_name')!r}, expected {tag!r}")
-
-          release = stable[0]
-          asset = next((a for a in release.get('assets', []) if a.get('name') == 'winnes_gps.zip'), None)
-          if asset is None:
-              raise SystemExit('latest stable release has no winnes_gps.zip asset')
-
-          with open('/tmp/asset-url', 'w') as file:
-              file.write(asset['browser_download_url'])
           print(f'PASS: HACS release selection resolves to Version {tag}')
           PY
 
-          # HACS loads latest-release metadata through GitHub repository contents.
-          # Use the authenticated Contents API instead of raw.githubusercontent.com,
-          # whose separate anonymous throttling is not the release-selection path.
+          # Read the exact metadata HACS will use for the selected tag.
           for target in hacs.json custom_components/winnes_gps/manifest.json; do
             output="/tmp/$(basename "$target")"
             ok=0
@@ -103,35 +92,54 @@ jobs:
           hacs = json.load(open('/tmp/hacs.json'))
           tagged_manifest = json.load(open('/tmp/manifest.json'))
 
-          if hacs.get('zip_release') is not True:
-              raise SystemExit('tagged hacs.json does not enable zip_release')
-          if hacs.get('filename') != 'winnes_gps.zip':
-              raise SystemExit('tagged hacs.json does not name winnes_gps.zip')
+          if hacs.get('zip_release') is True:
+              raise SystemExit('tagged hacs.json unexpectedly enables zip_release')
+          if 'filename' in hacs:
+              raise SystemExit('tagged hacs.json unexpectedly forces a release filename')
+          if hacs.get('hide_default_branch') is not True:
+              raise SystemExit('tagged hacs.json must keep the default branch hidden')
           if tagged_manifest.get('version') != local_version:
               raise SystemExit('tagged integration manifest version does not match released commit')
-          print('PASS: tagged HACS metadata and integration manifest validate')
+          print('PASS: tagged HACS metadata selects the standard repository archive path')
           PY
 
-          # HACS zip_release downloads this published release asset. Follow redirects
-          # and retry transient 429/5xx/network failures, then inspect the exact ZIP.
-          ASSET_URL="$(cat /tmp/asset-url)"
+          # HACS 2.0.5 download_repository_zip() strips its internal tags/ prefix
+          # and downloads exactly archive/refs/tags/<version>.zip for a release.
+          ARCHIVE_URL="https://github.com/$GITHUB_REPOSITORY/archive/refs/tags/$TAG.zip"
           curl --fail --location --retry 5 --retry-delay 4 --retry-all-errors \
             --connect-timeout 20 --max-time 120 \
-            --output /tmp/winnes_gps.zip "$ASSET_URL"
+            --output /tmp/repository.zip "$ARCHIVE_URL"
 
           python - <<'PY'
           import json
           import zipfile
 
           version = json.load(open('custom_components/winnes_gps/manifest.json'))['version']
-          required = {'__init__.py', 'manifest.json', 'config_flow.py', 'api.py', 'coordinator.py'}
-          with zipfile.ZipFile('/tmp/winnes_gps.zip') as archive:
-              names = set(archive.namelist())
-              missing = required - names
+          required = {
+              '__init__.py',
+              'manifest.json',
+              'config_flow.py',
+              'api.py',
+              'coordinator.py',
+          }
+
+          with zipfile.ZipFile('/tmp/repository.zip') as archive:
+              names = archive.namelist()
+              manifest_candidates = [
+                  name for name in names
+                  if name.endswith('/custom_components/winnes_gps/manifest.json')
+              ]
+              if len(manifest_candidates) != 1:
+                  raise SystemExit(
+                      f'expected one integration manifest in tagged archive, got {manifest_candidates}'
+                  )
+              base = manifest_candidates[0][:-len('manifest.json')]
+              missing = [name for name in required if f'{base}{name}' not in names]
               if missing:
-                  raise SystemExit(f'release ZIP missing required files: {sorted(missing)}')
-              manifest = json.loads(archive.read('manifest.json'))
+                  raise SystemExit(f'tagged repository archive missing required files: {sorted(missing)}')
+              manifest = json.loads(archive.read(f'{base}manifest.json'))
               if manifest.get('version') != version:
-                  raise SystemExit('release ZIP manifest version does not match released version')
-          print(f'PASS: published winnes_gps.zip is complete and version {version}')
+                  raise SystemExit('tagged repository archive manifest version mismatch')
+
+          print(f'PASS: HACS standard tagged repository archive is complete for version {version}')
           PY

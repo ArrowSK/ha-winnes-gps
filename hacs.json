@@ -2,7 +2,5 @@
   "name": "WINNES GPS",
   "homeassistant": "2026.8.0",
   "render_readme": true,
-  "zip_release": true,
-  "filename": "winnes_gps.zip",
   "hide_default_branch": true
 }

@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented here.
 
+## 0.1.6 - 2026-08-17
+
+HACS 2.0.5 installation-path fix.
+
+- Return to HACS's standard tagged repository-archive installation path instead of `zip_release` mode. HACS 2.0.5 explicitly strips the internal `tags/` prefix before downloading `archive/refs/tags/<version>.zip`, which is the path this release now validates end to end.
+- Keep stable GitHub releases as the version source and keep the default branch hidden from the version selector.
+- After publishing a new release, make one harmless metadata commit on `main` so a HACS instance that cached the repository before the release existed cannot keep receiving an unchanged repository ETag and remain stuck in Commit mode.
+- Update the post-release smoke test to verify HACS release discovery, tagged metadata, and the exact tagged repository archive layout used by HACS 2.0.5.
+- No Home Assistant runtime behavior changed in this release.
+
 ## 0.1.5 - 2026-08-17
 
 HACS end-to-end release proof.
