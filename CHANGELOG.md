@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here.
 
+## 0.1.2 - 2026-08-17
+
+HACS distribution reliability fix.
+
+- Publish an explicit `winnes_gps.zip` asset with every GitHub release.
+- Configure HACS `zip_release` mode so installs and upgrades use that release asset instead of relying on repository archive download behavior.
+- Refresh the release asset automatically when a release already exists.
+
 ## 0.1.1 - 2026-08-17
 
 Backend compatibility fix based on the current mytkstar.net web request profile.
