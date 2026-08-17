@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented here.
 
+## 0.1.5 - 2026-08-17
+
+HACS end-to-end release proof.
+
+- Validate the same GitHub release-list behavior HACS 2.0.5 uses to decide between Version and Commit mode.
+- Read tagged HACS metadata through GitHub's authenticated Contents API, matching HACS's normal latest-release metadata path and avoiding unrelated raw-content throttling in the smoke test.
+- Download the actual published `winnes_gps.zip` release asset with redirects and bounded retries, then verify its required files and manifest version.
+- Keep the hardened validation and release-publication retry logic introduced in 0.1.4.
+- No Home Assistant runtime behavior changed in this release.
+
 ## 0.1.4 - 2026-08-17
 
 HACS release verification hardening.
